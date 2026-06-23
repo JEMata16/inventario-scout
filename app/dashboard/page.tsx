@@ -1,8 +1,8 @@
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
-export default async function Home() {
+export default async function DashboardRedirect() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -10,5 +10,5 @@ export default async function Home() {
   }
 
   const role = (session.user as any).role || "USUARIO";
-  redirect(role === "ADMIN" ? "/admin" : "/usuario");
+  redirect(role === "ADMIN" ? "/dashboard/admin" : "/dashboard/usuario");
 }

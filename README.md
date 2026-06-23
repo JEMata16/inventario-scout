@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scout Group #3 - Sistema de Inventario
 
-## Getting Started
+Sistema de gestión de inventarios para el Grupo de Guías y Scouts #3 de la Sabana.
 
-First, run the development server:
+## Configuración Rápida
 
 ```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Configurar .env.local con tus credenciales SQL Server
+# DATABASE_URL="sqlserver://localhost,1433;database=tcu_inventario_scout;..."
+
+# 3. Generar Prisma Client
+npm run db:generate
+
+# 4. Ejecutar migraciones
+npm run db:push
+
+# 5. Seed de datos
+npm run db:seed
+
+# 6. Iniciar desarrollo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Credenciales de Prueba
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Admin: `admin@scoutgroup.com` / `admin123`
+- Usuario: `usuario@scoutgroup.com` / `user123`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tecnologías
 
-## Learn More
+- Next.js 16 + TypeScript + Tailwind CSS
+- NextAuth.js para autenticación
+- SQL Server + Prisma ORM
+- Zod para validación
+- React Hook Form
+- Recharts para gráficos
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `/app` - Páginas y rutas
+- `/components` - Componentes React
+- `/lib` - Librerías y configuración
+- `/types` - Definiciones TypeScript
+- `/prisma` - Schema de base de datos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Próximas Etapas
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Implementar módulos de Materiales, Préstamos, Gráficos y Notificaciones.

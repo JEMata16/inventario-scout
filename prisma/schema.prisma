@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+model Usuario {
+  id                    Int      @id @default(autoincrement())
+  email                 String   @unique
+  nombre                String
+  apellido              String?
+  password              String
+  rol                   String   @default("USUARIO")  // "ADMIN" o "USUARIO"
+  estado                Boolean  @default(true)
+  telefono              String?
+  fechaRegistro         DateTime @default(now())
+  ultimoAcceso          DateTime?
+
+  // Relaciones
+  materialesCreados     Material[]
+  solicitudesCreadas    SolicitudPrestamo[] @relation("usuario_solicitud")
+  solicitudesAprobadas  SolicitudPrestamo[] @relation("usuario_aprobacion")
+  solicitudesRechazadas SolicitudPrestamo[] @relation("usuario_rechazo")
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Material {
+  id              Int      @id @default(autoincrement())
+  nombre          String
+  descripcion     String?
+  cantidad        Int      @default(0)
+  categoria       String?
+  estado          String   @default("DISPONIBLE")  // "DISPONIBLE", "NO_DISPONIBLE", "EN_MANTENIMIENTO"
+  creadoPor       Int
+
+  // Relaciones
+  usuario         Usuario @relation(fields: [creadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  detallesPrestamo DetallePrestamo[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([creadoPor])
+}
+
+model SolicitudPrestamo {
+  id                      Int      @id @default(autoincrement())
+  usuarioId               Int
+  estado                  String   @default("PENDIENTE")  // "PENDIENTE", "APROBADA", "RECHAZADA", "DEVUELTO"
+  fechaSolicitud          DateTime @default(now())
+  fechaAprobacion         DateTime?
+  fechaRechazo            DateTime?
+  fechaDevolucionEsperada DateTime?
+  fechaDevolucionReal     DateTime?
+  razonRechazo            String?
+  aceptadoPor             Int?
+  rechazadoPor            Int?
+  notificado3Dias         Boolean  @default(false)
+  notificadoVencimiento   Boolean  @default(false)
+
+  // Relaciones
+  usuario                 Usuario @relation("usuario_solicitud", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarioAprobador        Usuario? @relation("usuario_aprobacion", fields: [aceptadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarioRechazador       Usuario? @relation("usuario_rechazo", fields: [rechazadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  detalles                DetallePrestamo[]
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([usuarioId])
+  @@index([aceptadoPor])
+  @@index([rechazadoPor])
+}
+
+model DetallePrestamo {
+  id              Int      @id @default(autoincrement())
+  solicitudId     Int
+  materialId      Int
+  cantidad        Int
+
+  // Relaciones
+  solicitud       SolicitudPrestamo @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
+  material        Material @relation(fields: [materialId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  createdAt       DateTime @default(now())
+
+  @@index([solicitudId])
+  @@index([materialId])
+}
