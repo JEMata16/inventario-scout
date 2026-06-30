@@ -3,6 +3,60 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminNavBar } from "@/components/layout/AdminNavBar";
 
+const statCards = [
+  {
+    label: "Materiales",
+    value: "0",
+    description: "artículos registrados",
+    href: "/admin/materiales",
+    linkText: "Gestionar materiales",
+    accent: "border-green-500",
+    iconBg: "bg-green-50",
+    iconColor: "text-green-600",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
+      />
+    ),
+  },
+  {
+    label: "Solicitudes Pendientes",
+    value: "0",
+    description: "en espera de revisión",
+    href: "/admin/prestamos",
+    linkText: "Revisar solicitudes",
+    accent: "border-amber-500",
+    iconBg: "bg-amber-50",
+    iconColor: "text-amber-600",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"
+      />
+    ),
+  },
+  {
+    label: "Análisis",
+    value: "—",
+    description: "estadísticas del sistema",
+    href: "/admin/graficos",
+    linkText: "Ver análisis",
+    accent: "border-sky-500",
+    iconBg: "bg-sky-50",
+    iconColor: "text-sky-600",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
+      />
+    ),
+  },
+];
+
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
 
@@ -12,42 +66,71 @@ export default async function AdminDashboard() {
 
   const role = (session.user as any).role || "USUARIO";
   if (role !== "ADMIN") {
-    redirect("/usuario");
+    redirect("/dashboard/usuario");
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <AdminNavBar />
-      <main className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Materiales</h3>
-            <p className="text-3xl font-bold text-blue-600">0</p>
-            <a href="/admin/materiales" className="text-blue-500 hover:underline mt-2 text-sm">
-              Ver módulo →
-            </a>
-          </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Solicitudes Pendientes</h3>
-            <p className="text-3xl font-bold text-orange-600">0</p>
-            <a href="/admin/prestamos" className="text-blue-500 hover:underline mt-2 text-sm">
-              Ver módulo →
-            </a>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Análisis</h3>
-            <p className="text-3xl font-bold text-green-600">-</p>
-            <a href="/admin/graficos" className="text-blue-500 hover:underline mt-2 text-sm">
-              Ver módulo →
-            </a>
-          </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Page header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Panel de Administración</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Bienvenido, <span className="font-medium text-slate-700">{session.user.name}</span>
+          </p>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800">
-            Sistema de Inventario en desarrollo. Los módulos se rellenarán próximamente.
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          {statCards.map((card) => (
+            <div
+              key={card.label}
+              className={`bg-white rounded-xl shadow-sm border border-slate-200 border-l-4 ${card.accent} p-6 flex flex-col gap-4`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                  <p className="text-3xl font-bold text-slate-900 mt-1">{card.value}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{card.description}</p>
+                </div>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${card.iconBg}`}>
+                  <svg
+                    className={`w-5 h-5 ${card.iconColor}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    aria-hidden="true"
+                  >
+                    {card.icon}
+                  </svg>
+                </div>
+              </div>
+              <a
+                href={card.href}
+                className="inline-flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700 transition-colors"
+              >
+                {card.linkText}
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8z" />
+                </svg>
+              </a>
+            </div>
+          ))}
+        </div>
+
+        {/* Info banner */}
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5">
+            <svg className="w-3 h-3 text-green-600" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+              <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+            </svg>
+          </div>
+          <p className="text-sm text-green-700">
+            Los módulos de materiales, préstamos y análisis se encuentran en desarrollo y estarán disponibles próximamente.
           </p>
         </div>
       </main>
