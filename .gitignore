@@ -25,6 +25,9 @@
 *.pem
 AGENTS.md
 CLAUDE.md
+.graphifyignore
+graphify-out
+prisma/migrations
 
 # debug
 npm-debug.log*
