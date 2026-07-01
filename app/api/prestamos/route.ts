@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         usuario: { select: { nombre: true, apellido: true, email: true } },
         detalles: {
           include: {
-            material: { select: { nombre: true, imagen: true, categoria: true } },
+            material: { select: { nombre: true, categoria: true } },
           },
         },
       },

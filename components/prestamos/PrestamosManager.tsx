@@ -9,7 +9,7 @@ interface DetallePrestamo {
   id: number;
   materialId: number;
   cantidad: number;
-  material: { nombre: string; imagen?: string | null; categoria?: string | null };
+  material: { nombre: string; categoria?: string | null };
 }
 
 interface SolicitudPrestamo {
@@ -395,13 +395,21 @@ export function PrestamosManager() {
                 <div className="space-y-2">
                   {viewing.detalles.map((d) => (
                     <div key={d.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                      {d.material.imagen ? (
-                        <img src={d.material.imagen} alt={d.material.nombre} className="w-10 h-10 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0">
+                      <div className="relative w-10 h-10 flex-shrink-0">
+                        <img
+                          src={`/api/materiales/${d.materialId}/imagen`}
+                          alt={d.material.nombre}
+                          className="w-10 h-10 rounded-lg object-cover border border-slate-200"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fb = e.currentTarget.nextElementSibling as HTMLElement | null;
+                            if (fb) fb.style.display = "flex";
+                          }}
+                        />
+                        <div style={{ display: "none" }} className="absolute inset-0 w-10 h-10 rounded-lg bg-slate-200 items-center justify-center">
                           <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" /></svg>
                         </div>
-                      )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-slate-900 truncate">{d.material.nombre}</p>
                         {d.material.categoria && <p className="text-xs text-slate-400">{d.material.categoria}</p>}

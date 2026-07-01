@@ -72,8 +72,19 @@ export function MaterialesManager() {
     setIsFormOpen(true);
   }
 
-  function openEdit(m: MaterialData) {
-    setEditingMaterial(m);
+  async function openEdit(m: MaterialData) {
+    // Fetch the full material including imagen so the form can pre-populate it
+    try {
+      const res = await fetch(`/api/materiales/${m.id}`);
+      if (res.ok) {
+        const full = await res.json();
+        setEditingMaterial(full);
+      } else {
+        setEditingMaterial(m);
+      }
+    } catch {
+      setEditingMaterial(m);
+    }
     setIsFormOpen(true);
   }
 
@@ -183,9 +194,9 @@ export function MaterialesManager() {
                   return (
                     <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3">
-                        {m.imagen ? (
+                        {m.hasImagen ? (
                           <img
-                            src={m.imagen}
+                            src={`/api/materiales/${m.id}/imagen`}
                             alt={m.nombre}
                             className="w-10 h-10 rounded-lg object-cover border border-slate-200"
                           />

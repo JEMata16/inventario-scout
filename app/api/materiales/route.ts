@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (estado) where.estado = estado;
   if (categoria) where.categoria = categoria;
 
-  const [materiales, total] = await Promise.all([
+  const [rawMateriales, total] = await Promise.all([
     prisma.material.findMany({
       where,
       skip,
@@ -43,6 +43,13 @@ export async function GET(request: NextRequest) {
     }),
     prisma.material.count({ where }),
   ]);
+
+  // Strip base64 image data from list response to keep payloads small.
+  // Consumers use /api/materiales/{id}/imagen to display images.
+  const materiales = rawMateriales.map(({ imagen, ...rest }) => ({
+    ...rest,
+    hasImagen: !!imagen,
+  }));
 
   return NextResponse.json({
     materiales,

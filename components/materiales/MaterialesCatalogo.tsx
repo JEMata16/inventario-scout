@@ -9,7 +9,7 @@ interface Material {
   cantidad: number;
   categoria?: string | null;
   estado: string;
-  imagen?: string | null;
+  hasImagen?: boolean;
 }
 
 interface Pagination {
@@ -157,9 +157,9 @@ export function MaterialesCatalogo() {
             >
               {/* Image */}
               <div className="aspect-video bg-slate-100 overflow-hidden">
-                {m.imagen ? (
+                {m.hasImagen ? (
                   <img
-                    src={m.imagen}
+                    src={`/api/materiales/${m.id}/imagen`}
                     alt={m.nombre}
                     className="w-full h-full object-cover"
                     loading="lazy"

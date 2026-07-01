@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -25,13 +23,8 @@ export async function POST(request: NextRequest) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
+  const base64 = buffer.toString("base64");
+  const dataUrl = `data:${file.type};base64,${base64}`;
 
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const uploadDir = join(process.cwd(), "public", "uploads", "materiales");
-
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(join(uploadDir, safeName), buffer);
-
-  return NextResponse.json({ url: `/uploads/materiales/${safeName}` }, { status: 201 });
+  return NextResponse.json({ url: dataUrl }, { status: 201 });
 }

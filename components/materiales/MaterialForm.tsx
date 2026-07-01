@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FieldValues, useForm } from "react-hook-form";
+import { useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateMaterialSchema, type CreateMaterialSchemaType } from "@/lib/validations";
 import { Button, Input, Alert } from "@/components/common";
@@ -14,6 +14,7 @@ export interface MaterialData {
   categoria?: string | null;
   estado: string;
   imagen?: string | null;
+  hasImagen?: boolean;
 }
 
 
@@ -34,7 +35,12 @@ export function MaterialForm({ material, onSuccess, onCancel }: MaterialFormProp
   const isEdit = !!material;
   const [serverError, setServerError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(material?.imagen ?? null);
+  // Preview via API URL to avoid storing the full base64 string in React state
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    material?.id && (material.imagen || material.hasImagen)
+      ? `/api/materiales/${material.id}/imagen`
+      : null
+  );
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

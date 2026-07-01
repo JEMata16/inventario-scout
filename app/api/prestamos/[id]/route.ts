@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
       usuario: { select: { nombre: true, apellido: true, email: true } },
       detalles: {
         include: {
-          material: { select: { nombre: true, imagen: true, categoria: true, cantidad: true } },
+          material: { select: { nombre: true, categoria: true, cantidad: true } },
         },
       },
     },

@@ -6,6 +6,20 @@ import { UpdateMaterialSchema } from "@/lib/validations";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_request: NextRequest, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { id } = await params;
+  const materialId = parseInt(id, 10);
+  if (isNaN(materialId)) return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+
+  const material = await prisma.material.findUnique({ where: { id: materialId } });
+  if (!material) return NextResponse.json({ error: "Material no encontrado" }, { status: 404 });
+
+  return NextResponse.json(material);
+}
+
 export async function PUT(request: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
