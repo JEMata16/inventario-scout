@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
 }
 
@@ -36,6 +36,7 @@ model Material {
   cantidad        Int      @default(0)
   categoria       String?
   estado          String   @default("DISPONIBLE")  // "DISPONIBLE", "NO_DISPONIBLE", "EN_MANTENIMIENTO"
+  imagen          String?
   creadoPor       Int
 
   // Relaciones

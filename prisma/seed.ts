@@ -1,7 +1,10 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaMssql } from "@prisma/adapter-mssql";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaMssql(process.env.DATABASE_URL!);
+const prisma = new PrismaClient({ adapter } as any);
 
 async function main() {
   // Limpiar datos previos (opcional)
@@ -25,7 +28,7 @@ async function main() {
 
   // Crear usuario de prueba
   const userPassword = await bcrypt.hash("user123", 10);
-  const usuario = await prisma.usuario.create({
+  await prisma.usuario.create({
     data: {
       email: "usuario@scoutgroup.com",
       nombre: "Juan",
