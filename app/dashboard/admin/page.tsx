@@ -2,60 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminNavBar } from "@/components/layout/AdminNavBar";
-
-const statCards = [
-  {
-    label: "Materiales",
-    value: "0",
-    description: "artículos registrados",
-    href: "/admin/materiales",
-    linkText: "Gestionar materiales",
-    accent: "border-green-500",
-    iconBg: "bg-green-50",
-    iconColor: "text-green-600",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
-      />
-    ),
-  },
-  {
-    label: "Solicitudes Pendientes",
-    value: "0",
-    description: "en espera de revisión",
-    href: "/admin/prestamos",
-    linkText: "Revisar solicitudes",
-    accent: "border-amber-500",
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"
-      />
-    ),
-  },
-  {
-    label: "Análisis",
-    value: "—",
-    description: "estadísticas del sistema",
-    href: "/admin/graficos",
-    linkText: "Ver análisis",
-    accent: "border-sky-500",
-    iconBg: "bg-sky-50",
-    iconColor: "text-sky-600",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
-      />
-    ),
-  },
-];
+import { prisma } from "@/lib/db";
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -68,6 +15,65 @@ export default async function AdminDashboard() {
   if (role !== "ADMIN") {
     redirect("/dashboard/usuario");
   }
+
+  const [totalMateriales, solicitudesPendientes] = await Promise.all([
+    prisma.material.count(),
+    prisma.solicitudPrestamo.count({ where: { estado: "PENDIENTE" } }),
+  ]);
+
+  const statCards = [
+    {
+      label: "Materiales",
+      value: String(totalMateriales),
+      description: "artículos registrados",
+      href: "/admin/materiales",
+      linkText: "Gestionar materiales",
+      accent: "border-green-500",
+      iconBg: "bg-green-50",
+      iconColor: "text-green-600",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
+        />
+      ),
+    },
+    {
+      label: "Solicitudes Pendientes",
+      value: String(solicitudesPendientes),
+      description: "en espera de revisión",
+      href: "/admin/prestamos",
+      linkText: "Revisar solicitudes",
+      accent: "border-amber-500",
+      iconBg: "bg-amber-50",
+      iconColor: "text-amber-600",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"
+        />
+      ),
+    },
+    {
+      label: "Análisis",
+      value: "—",
+      description: "estadísticas del sistema",
+      href: "/admin/graficos",
+      linkText: "Ver análisis",
+      accent: "border-sky-500",
+      iconBg: "bg-sky-50",
+      iconColor: "text-sky-600",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50">
