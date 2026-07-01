@@ -42,11 +42,11 @@ export const CreateSolicitudPrestamoSchema = z.object({
 });
 
 export const AprobarPrestamoSchema = z.object({
-  diasPrestamo: z.number().int().positive("Los días deben ser mayor a 0"),
+  fechaDevolucionEsperada: z.string().min(1, "Debe indicar una fecha de devolución"),
 });
 
 export const RechazarPrestamoSchema = z.object({
-  razon: z.string().min(10, "La razón debe tener al menos 10 caracteres"),
+  razon: z.string().min(5, "La razón debe tener al menos 5 caracteres").max(500),
 });
 
 // Búsqueda y filtros
