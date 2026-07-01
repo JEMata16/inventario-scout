@@ -27,13 +27,14 @@ export function LoginForm() {
     const result = await signIn("credentials", {
       email: data.email,
       password: data.password,
-      redirect: true,
-      callbackUrl: "/dashboard",
+      redirect: false,
     });
 
     if (!result?.ok) {
-      setError(result?.error || "Credenciales incorrectas");
+      setError("Credenciales inválidos. Verifique su correo y contraseña.");
       setIsLoading(false);
+    } else {
+      window.location.href = "/dashboard";
     }
   };
 

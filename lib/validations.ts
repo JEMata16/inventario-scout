@@ -21,12 +21,15 @@ export const SignUpSchema = z.object({
 export const CreateMaterialSchema = z.object({
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   descripcion: z.string().optional(),
-  cantidad: z.number().int().positive("La cantidad debe ser mayor a 0"),
+  cantidad: z.number().int().min(0, "La cantidad no puede ser negativa"),
   categoria: z.string().optional(),
   estado: z.enum(["DISPONIBLE", "NO_DISPONIBLE", "EN_MANTENIMIENTO"]).default("DISPONIBLE"),
+  imagen: z.string().optional(),
 });
 
-export const UpdateMaterialSchema = CreateMaterialSchema;
+export const UpdateMaterialSchema = CreateMaterialSchema.partial().required({ nombre: true });
+
+export type UpdateMaterialSchemaType = z.infer<typeof UpdateMaterialSchema>;
 
 // Préstamos
 export const CreateSolicitudPrestamoSchema = z.object({

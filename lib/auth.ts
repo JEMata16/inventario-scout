@@ -1,6 +1,8 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 import { SignInSchema } from "./validations";
+import { prisma } from "./db";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,42 +14,28 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          if (!credentials?.email || !credentials?.password) {
-            console.log("Credenciales faltantes");
-            return null;
-          }
-          console.log("Validando credenciales para:", credentials.email);
-          const validatedCredentials = SignInSchema.parse({
-            email: credentials.email,
-            password: credentials.password,
+          const parsed = SignInSchema.safeParse(credentials);
+          if (!parsed.success) return null;
+
+          const { email, password } = parsed.data;
+
+          const usuario = await prisma.usuario.findUnique({
+            where: { email },
           });
-          
-          if (validatedCredentials.email === "admin@scoutgroup.com" &&
-              validatedCredentials.password === "admin123") {
-            console.log("Login exitoso como ADMIN");
-            return {
-              id: "1",
-              email: "admin@scoutgroup.com",
-              name: "Administrador",
-              role: "ADMIN",
-            };
-          }
-          
-          if (validatedCredentials.email === "usuario@scoutgroup.com" &&
-              validatedCredentials.password === "user123") {
-            console.log("Login exitoso como USUARIO");
-            return {
-              id: "2",
-              email: "usuario@scoutgroup.com",
-              name: "Usuario Test",
-              role: "USER",
-            };
-          }
-          
-          console.log("Credenciales inválidas");
-          return null;
-        } catch (error: any) {
-          console.error("Error en authorize:", error.message);
+
+          if (!usuario || !usuario.estado) return null;
+
+          const passwordMatch = await bcrypt.compare(password, usuario.password);
+          if (!passwordMatch) return null;
+
+          return {
+            id: String(usuario.id),
+            email: usuario.email,
+            name: `${usuario.nombre}${usuario.apellido ? " " + usuario.apellido : ""}`,
+            role: usuario.rol,
+          };
+        } catch (error) {
+          console.error("Error en authorize:", error);
           return null;
         }
       },
@@ -73,7 +61,7 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }: any) {
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
+      if (new URL(url).origin === baseUrl) return url;
       return `${baseUrl}/dashboard`;
     },
   },
@@ -81,7 +69,6 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
     error: "/login",
   },
-  debug: true,
 };
 
 export default NextAuth(authOptions);
