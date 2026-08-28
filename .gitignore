@@ -28,6 +28,7 @@ CLAUDE.md
 .graphifyignore
 graphify-out
 prisma/migrations
+.claude
 
 # debug
 npm-debug.log*
