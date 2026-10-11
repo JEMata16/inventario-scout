@@ -4,16 +4,28 @@ import { redirect } from "next/navigation";
 import { AdminNavBar } from "@/components/layout/AdminNavBar";
 import { PrestamosManager } from "@/components/prestamos/PrestamosManager";
 import type { Metadata } from "next";
+import { ESTADOS_SOLICITUD, FILTROS_OPERATIVOS, SECCIONES } from "@/lib/constantes";
 
 export const metadata: Metadata = {
   title: "Gestión de Préstamos | Scout Inventario",
 };
 
-export default async function AdminPrestamosPage() {
+const ESTADOS_VALIDOS: string[] = [...ESTADOS_SOLICITUD, ...FILTROS_OPERATIVOS.map((f) => f.value)];
+const SECCIONES_VALIDAS: string[] = SECCIONES.map((s) => s.value);
+
+export default async function AdminPrestamosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) redirect("/login");
-  if ((session.user as any).role !== "ADMIN") redirect("/dashboard/usuario");
+  if (session.user.role !== "ADMIN") redirect("/dashboard/usuario");
+
+  const params = await searchParams;
+  const estado = typeof params.estado === "string" && ESTADOS_VALIDOS.includes(params.estado) ? params.estado : "";
+  const seccion = typeof params.seccion === "string" && SECCIONES_VALIDAS.includes(params.seccion) ? params.seccion : "";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -27,7 +39,8 @@ export default async function AdminPrestamosPage() {
           </p>
         </div>
 
-        <PrestamosManager />
+        {/* key: si cambia el filtro en la URL, el panel se reinicia con él */}
+        <PrestamosManager key={`${estado}|${seccion}`} estadoInicial={estado} seccionInicial={seccion} />
       </main>
     </div>
   );

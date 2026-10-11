@@ -29,7 +29,7 @@ export default async function UsuarioMaterialesPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Materiales Disponibles</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Consulte el catálogo de materiales disponibles para préstamo.
+            Consulte el catálogo de materiales. La disponibilidad para fechas específicas se muestra al crear una solicitud.
           </p>
         </div>
 

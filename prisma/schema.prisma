@@ -7,6 +7,8 @@ datasource db {
   provider = "sqlserver"
 }
 
+// Cuentas del sistema: un ADMIN y una cuenta compartida por sección
+// (Manada, Tropa, Wak, Comunidad) con rol USUARIO.
 model Usuario {
   id                    Int      @id @default(autoincrement())
   email                 String   @unique
@@ -14,6 +16,7 @@ model Usuario {
   apellido              String?
   password              String
   rol                   String   @default("USUARIO")  // "ADMIN" o "USUARIO"
+  seccion               String?                      // "MANADA", "TROPA", "WAK", "COMUNIDAD" (null para ADMIN)
   estado                Boolean  @default(true)
   telefono              String?
   fechaRegistro         DateTime @default(now())
@@ -24,71 +27,100 @@ model Usuario {
   solicitudesCreadas    SolicitudPrestamo[] @relation("usuario_solicitud")
   solicitudesAprobadas  SolicitudPrestamo[] @relation("usuario_aprobacion")
   solicitudesRechazadas SolicitudPrestamo[] @relation("usuario_rechazo")
+  solicitudesEntregadas SolicitudPrestamo[] @relation("usuario_entrega")
+  solicitudesRecibidas  SolicitudPrestamo[] @relation("usuario_recepcion")
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
 
+// La disponibilidad NO se guarda: se calcula por rango de fechas como
+// cantidadTotal - cantidadMantenimiento - lo reservado en préstamos
+// APROBADOS o ENTREGADOS que se traslapan (ver lib/disponibilidad.ts).
 model Material {
-  id              Int      @id @default(autoincrement())
-  nombre          String
-  descripcion     String?
-  cantidad        Int      @default(0)
-  categoria       String?
-  estado          String   @default("DISPONIBLE")  // "DISPONIBLE", "NO_DISPONIBLE", "EN_MANTENIMIENTO"
-  imagen          String?   @db.NVarChar(Max)
-  creadoPor       Int
+  id                    Int      @id @default(autoincrement())
+  nombre                String
+  descripcion           String?
+  cantidadTotal         Int      @default(0)  // unidades que posee el grupo
+  cantidadMantenimiento Int      @default(0)  // unidades dañadas / en reparación
+  categoria             String?
+  estado                String   @default("DISPONIBLE")  // "DISPONIBLE", "NO_DISPONIBLE", "EN_MANTENIMIENTO"
+  imagen                String?  @db.NVarChar(Max)
+  creadoPor             Int
 
   // Relaciones
-  usuario         Usuario @relation(fields: [creadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  detallesPrestamo DetallePrestamo[]
+  usuario               Usuario @relation(fields: [creadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  detallesPrestamo      DetallePrestamo[]
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([creadoPor])
 }
 
+// Ciclo de vida:
+// PENDIENTE -> APROBADA -> ENTREGADA -> DEVUELTA
+// PENDIENTE -> RECHAZADA
+// PENDIENTE | APROBADA -> CANCELADA
+// Las fechas de retiro/devolución son fechas de calendario (medianoche UTC).
 model SolicitudPrestamo {
   id                      Int      @id @default(autoincrement())
   usuarioId               Int
-  estado                  String   @default("PENDIENTE")  // "PENDIENTE", "APROBADA", "RECHAZADA", "DEVUELTO"
+  estado                  String   @default("PENDIENTE")  // "PENDIENTE", "APROBADA", "ENTREGADA", "DEVUELTA", "RECHAZADA", "CANCELADA"
+  responsable             String                          // dirigente que hace la solicitud (cuentas compartidas)
+  actividad               String?                         // motivo / actividad
   fechaSolicitud          DateTime @default(now())
+  fechaRetiro             DateTime                        // primer día que se usa el material
+  fechaDevolucionEsperada DateTime                        // último día que se usa el material
   fechaAprobacion         DateTime?
   fechaRechazo            DateTime?
-  fechaDevolucionEsperada DateTime?
+  fechaEntrega            DateTime?
   fechaDevolucionReal     DateTime?
-  razonRechazo            String?
+  fechaCancelacion        DateTime?
+  motivoRechazo           String?                         // código de MOTIVOS_RECHAZO (lib/constantes.ts)
+  razonRechazo            String?                         // detalle opcional del rechazo (obligatorio si motivo = OTRO)
+  observacionesDevolucion String?
   aceptadoPor             Int?
   rechazadoPor            Int?
+  entregadoPor            Int?
+  recibidoPor             Int?
   notificado3Dias         Boolean  @default(false)
   notificadoVencimiento   Boolean  @default(false)
 
   // Relaciones
-  usuario                 Usuario @relation("usuario_solicitud", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario                 Usuario  @relation("usuario_solicitud", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarioAprobador        Usuario? @relation("usuario_aprobacion", fields: [aceptadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarioRechazador       Usuario? @relation("usuario_rechazo", fields: [rechazadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarioEntrega          Usuario? @relation("usuario_entrega", fields: [entregadoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarioRecepcion        Usuario? @relation("usuario_recepcion", fields: [recibidoPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
   detalles                DetallePrestamo[]
 
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
   @@index([usuarioId])
+  @@index([estado, fechaRetiro, fechaDevolucionEsperada])
   @@index([aceptadoPor])
   @@index([rechazadoPor])
+  @@index([entregadoPor])
+  @@index([recibidoPor])
 }
 
 model DetallePrestamo {
-  id              Int      @id @default(autoincrement())
-  solicitudId     Int
-  materialId      Int
-  cantidad        Int
+  id               Int      @id @default(autoincrement())
+  solicitudId      Int
+  materialId       Int
+  cantidad         Int
+  // Revisión al devolver: cantidad - cantidadDanada - cantidadFaltante volvió en buen estado
+  cantidadDanada   Int      @default(0)
+  cantidadFaltante Int      @default(0)
+  observaciones    String?
 
   // Relaciones
-  solicitud       SolicitudPrestamo @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
-  material        Material @relation(fields: [materialId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  solicitud        SolicitudPrestamo @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
+  material         Material @relation(fields: [materialId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  createdAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   @@index([solicitudId])
   @@index([materialId])

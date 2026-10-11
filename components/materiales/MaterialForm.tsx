@@ -10,11 +10,14 @@ export interface MaterialData {
   id: number;
   nombre: string;
   descripcion?: string | null;
-  cantidad: number;
+  cantidadTotal: number;
+  cantidadMantenimiento: number;
   categoria?: string | null;
   estado: string;
   imagen?: string | null;
   hasImagen?: boolean;
+  /** Unidades libres hoy (solo en listados) */
+  disponibleHoy?: number;
 }
 
 
@@ -55,7 +58,8 @@ export function MaterialForm({ material, onSuccess, onCancel }: MaterialFormProp
     defaultValues: {
       nombre: material?.nombre ?? "",
       descripcion: material?.descripcion ?? "",
-      cantidad: material?.cantidad ?? 0,
+      cantidadTotal: material?.cantidadTotal ?? 0,
+      cantidadMantenimiento: material?.cantidadMantenimiento ?? 0,
       categoria: material?.categoria ?? "",
       estado: (material?.estado as any) ?? "DISPONIBLE",
       imagen: material?.imagen ?? "",
@@ -226,27 +230,39 @@ export function MaterialForm({ material, onSuccess, onCancel }: MaterialFormProp
               {errors.descripcion && <span className="text-xs text-red-600">{errors.descripcion.message}</span>}
             </div>
 
+            <Input
+              label="Categoría"
+              placeholder="Ej. Campamento"
+              {...register("categoria")}
+              error={errors.categoria?.message}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Cantidad *"
+                label="Cantidad total *"
                 type="number"
                 min="0"
                 placeholder="0"
-                {...register("cantidad", { valueAsNumber: true })}
-                error={errors.cantidad?.message}
+                {...register("cantidadTotal", { valueAsNumber: true })}
+                error={errors.cantidadTotal?.message}
               />
 
               <Input
-                label="Categoría"
-                placeholder="Ej. Campamento"
-                {...register("categoria")}
-                error={errors.categoria?.message}
+                label="En mantenimiento"
+                type="number"
+                min="0"
+                placeholder="0"
+                {...register("cantidadMantenimiento", { valueAsNumber: true })}
+                error={errors.cantidadMantenimiento?.message}
               />
             </div>
+            <p className="-mt-2 text-xs text-slate-400">
+              Las unidades en mantenimiento no se pueden prestar. Al repararlas, reduzca este número.
+            </p>
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="estado" className="text-sm font-medium text-slate-700">
-                Estado
+                Estado del material
               </label>
               <select
                 id="estado"

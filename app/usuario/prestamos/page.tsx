@@ -6,7 +6,7 @@ import { MisPrestamos } from "@/components/prestamos/MisPrestamos";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Mis Préstamos | Scout Inventario",
+  title: "Préstamos de la Sección | Scout Inventario",
 };
 
 export default async function UsuarioPrestamosPage() {
@@ -21,9 +21,9 @@ export default async function UsuarioPrestamosPage() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Mis Préstamos</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Préstamos de la Sección</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Consulte el estado de sus solicitudes y solicite nuevos préstamos.
+            Consulte el estado de las solicitudes de la sección y pida materiales para sus actividades.
           </p>
         </div>
 

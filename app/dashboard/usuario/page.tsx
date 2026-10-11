@@ -21,7 +21,7 @@ export default async function UsuarioDashboard() {
   const [materialesDisponibles, prestamosActivos] = await Promise.all([
     prisma.material.count({ where: { estado: "DISPONIBLE" } }),
     prisma.solicitudPrestamo.count({
-      where: { usuarioId, estado: { in: ["PENDIENTE", "APROBADA"] } },
+      where: { usuarioId, estado: { in: ["PENDIENTE", "APROBADA", "ENTREGADA"] } },
     }),
   ]);
 
@@ -44,7 +44,7 @@ export default async function UsuarioDashboard() {
       ),
     },
     {
-      label: "Mis Préstamos",
+      label: "Préstamos de la Sección",
       value: String(prestamosActivos),
       description: "solicitudes activas",
       href: "/usuario/prestamos",
@@ -69,9 +69,9 @@ export default async function UsuarioDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Page header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Mi Portal</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Portal de {session.user.name}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Bienvenido, <span className="font-medium text-slate-700">{session.user.name}</span>
+            Consulte materiales y gestione las solicitudes de préstamo de la sección.
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export default async function UsuarioDashboard() {
             </svg>
           </div>
           <p className="text-sm text-green-700">
-            Bienvenido al Sistema de Inventario. Aquí puedes consultar materiales disponibles y gestionar tus solicitudes de préstamo.
+            Indique las fechas de retiro y devolución al pedir: el sistema muestra cuántas unidades quedan para esas fechas y le avisa si otra sección pidió el mismo material. El material queda apartado cuando el administrador aprueba la solicitud.
           </p>
         </div>
       </main>

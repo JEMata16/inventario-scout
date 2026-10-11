@@ -98,12 +98,17 @@ export function LoginForm() {
             </Button>
           </form>
 
-          {/* Dev credentials */}
-          <div className="mt-6 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500 space-y-0.5">
-            <p className="font-medium text-slate-600 mb-1">Credenciales de prueba</p>
-            <p>Admin: admin@scoutgroup.com / admin123</p>
-            <p>Usuario: usuario@scoutgroup.com / user123</p>
-          </div>
+          {/* Dev credentials (solo en desarrollo) */}
+          {process.env.NODE_ENV !== "production" && (
+            <div className="mt-6 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500 space-y-0.5">
+              <p className="font-medium text-slate-600 mb-1">Credenciales de prueba</p>
+              <p>Admin: admin@scoutgroup.com / admin123</p>
+              <p>Manada: manada@scoutgroup.com / manada123</p>
+              <p>Tropa: tropa@scoutgroup.com / tropa123</p>
+              <p>Wak: wak@scoutgroup.com / wak123</p>
+              <p>Comunidad: comunidad@scoutgroup.com / comunidad123</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -31,3 +31,55 @@ body {
   outline: 2px solid #16a34a;
   outline-offset: 2px;
 }
+
+/* Impresión de reportes (Imprimir / Guardar como PDF): hoja carta */
+@media print {
+  @page {
+    size: letter;
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Gráficos al ancho de la hoja. Recharts envuelve el gráfico en un div
+     interno de ancho 0, así que se fuerza el 100% en cada nivel. Si el gráfico
+     quedó dibujado al ancho de la pantalla, su SVG (que trae viewBox) se escala.
+     No tocar la altura del contenedor: si se vuelve "auto" mide 0 y no dibuja. */
+  .recharts-responsive-container > div,
+  .recharts-wrapper,
+  .recharts-surface {
+    width: 100% !important;
+  }
+  .recharts-responsive-container > div,
+  .recharts-wrapper,
+  .recharts-surface {
+    height: auto !important;
+  }
+  /* La altura de pantalla queda como mínimo (var. --alto-grafico en .grafico):
+     así el contenedor nunca mide 0 y crece si el SVG se escaló hacia arriba. */
+  .grafico .recharts-responsive-container {
+    height: auto !important;
+    min-height: var(--alto-grafico) !important;
+  }
+
+  /* Las tablas se imprimen completas, sin barra de desplazamiento */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  thead {
+    display: table-header-group; /* repite encabezados de tabla en cada hoja */
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+}

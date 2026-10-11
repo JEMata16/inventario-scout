@@ -7,7 +7,7 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 const navItems = [
   { href: "/dashboard/usuario", label: "Inicio" },
   { href: "/usuario/materiales", label: "Materiales" },
-  { href: "/usuario/prestamos", label: "Mis Préstamos" },
+  { href: "/usuario/prestamos", label: "Préstamos" },
 ];
 
 export function UsuarioNavbar() {
@@ -27,7 +27,7 @@ export function UsuarioNavbar() {
             </div>
             <div>
               <span className="text-sm font-semibold leading-none">Scouts #3</span>
-              <span className="block text-[10px] text-green-300 leading-none mt-0.5">Portal Usuario</span>
+              <span className="block text-[10px] text-green-300 leading-none mt-0.5">Portal de Sección</span>
             </div>
           </div>
 

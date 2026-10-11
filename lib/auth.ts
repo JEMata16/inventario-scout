@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
           const { email, password } = parsed.data;
 
           const usuario = await prisma.usuario.findUnique({
-            where: { email },
+            where: { email: email.toLowerCase().trim() },
           });
 
           if (!usuario || !usuario.estado) return null;
@@ -28,11 +28,17 @@ export const authOptions: NextAuthOptions = {
           const passwordMatch = await bcrypt.compare(password, usuario.password);
           if (!passwordMatch) return null;
 
+          await prisma.usuario.update({
+            where: { id: usuario.id },
+            data: { ultimoAcceso: new Date() },
+          });
+
           return {
             id: String(usuario.id),
             email: usuario.email,
             name: `${usuario.nombre}${usuario.apellido ? " " + usuario.apellido : ""}`,
-            role: usuario.rol,
+            role: usuario.rol === "ADMIN" ? "ADMIN" : "USUARIO",
+            seccion: usuario.seccion,
           };
         } catch (error) {
           console.error("Error en authorize:", error);
@@ -49,13 +55,15 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.seccion = user.seccion ?? null;
       }
       return token;
     },
     async session({ session, token }: any) {
       if (session.user) {
         session.user.id = token.id as string;
-        (session.user as any).role = token.role as string;
+        session.user.role = token.role;
+        session.user.seccion = token.seccion ?? null;
       }
       return session;
     },

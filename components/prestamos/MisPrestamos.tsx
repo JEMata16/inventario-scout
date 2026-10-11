@@ -2,14 +2,28 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Alert } from "@/components/common";
+import { ESTADO_SOLICITUD_CONFIG, ESTADO_SOLICITUD_FILTROS, etiquetaMotivoRechazo, type EstadoSolicitud } from "@/lib/constantes";
+import { esFechaValida, formatFecha, formatFechaHora, formatRango, hoyCRISO } from "@/lib/fechas";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface MaterialOption {
+interface Competidora {
+  solicitudId: number;
+  seccion: string;
+  responsable: string;
+  cantidad: number;
+  fechaRetiro: string;
+  fechaDevolucionEsperada: string;
+  propia: boolean;
+}
+
+interface MaterialDisponibilidad {
   id: number;
   nombre: string;
-  cantidad: number;
   categoria?: string | null;
+  disponible: number;
+  disponibleConPendientes: number;
+  pendientes: Competidora[];
 }
 
 interface MaterialRow {
@@ -21,42 +35,35 @@ interface DetallePrestamo {
   id: number;
   materialId: number;
   cantidad: number;
-  material: { nombre: string; imagen?: string | null; categoria?: string | null };
+  cantidadDanada: number;
+  cantidadFaltante: number;
+  observaciones?: string | null;
+  material: { nombre: string; categoria?: string | null };
 }
 
 interface SolicitudPrestamo {
   id: number;
-  estado: string;
+  estado: EstadoSolicitud;
+  responsable: string;
+  actividad?: string | null;
   fechaSolicitud: string;
+  fechaRetiro: string;
+  fechaDevolucionEsperada: string;
   fechaAprobacion?: string | null;
   fechaRechazo?: string | null;
-  fechaDevolucionEsperada?: string | null;
+  fechaEntrega?: string | null;
   fechaDevolucionReal?: string | null;
+  fechaCancelacion?: string | null;
+  motivoRechazo?: string | null;
   razonRechazo?: string | null;
+  observacionesDevolucion?: string | null;
   detalles: DetallePrestamo[];
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
+const FILA_VACIA: MaterialRow = { materialId: "", cantidad: 1 };
 
-const ESTADO_CONFIG: Record<string, { label: string; badge: string; accent: string }> = {
-  PENDIENTE: { label: "Pendiente", badge: "bg-amber-100 text-amber-700", accent: "border-l-amber-400" },
-  APROBADA: { label: "Aprobada", badge: "bg-green-100 text-green-700", accent: "border-l-green-500" },
-  RECHAZADA: { label: "Rechazada", badge: "bg-red-100 text-red-700", accent: "border-l-red-400" },
-  DEVUELTO: { label: "Devuelto", badge: "bg-slate-100 text-slate-600", accent: "border-l-slate-300" },
-};
-
-const ESTADO_FILTER_OPTIONS = [
-  { value: "", label: "Todos los estados" },
-  { value: "PENDIENTE", label: "Pendiente" },
-  { value: "APROBADA", label: "Aprobada" },
-  { value: "RECHAZADA", label: "Rechazada" },
-  { value: "DEVUELTO", label: "Devuelto" },
-];
-
-function formatDate(d?: string | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-CR", { year: "numeric", month: "short", day: "numeric" });
-}
+const inputClass =
+  "w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-slate-400 transition-colors";
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -68,8 +75,17 @@ export function MisPrestamos() {
 
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [rows, setRows] = useState<MaterialRow[]>([{ materialId: "", cantidad: 1 }]);
-  const [materiales, setMateriales] = useState<MaterialOption[]>([]);
+  const [responsable, setResponsable] = useState("");
+  const [actividad, setActividad] = useState("");
+  const [fechaRetiro, setFechaRetiro] = useState("");
+  const [fechaDevolucion, setFechaDevolucion] = useState("");
+  const [rows, setRows] = useState<MaterialRow[]>([FILA_VACIA]);
+  // Resultado de disponibilidad etiquetado con el rango consultado
+  const [disp, setDisp] = useState<{ rango: string; materiales: MaterialDisponibilidad[]; error: string }>({
+    rango: "",
+    materiales: [],
+    error: "",
+  });
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,7 +96,7 @@ export function MisPrestamos() {
   const fetchSolicitudes = useCallback(async () => {
     setIsLoading(true);
     setPageError("");
-    const params = new URLSearchParams({ limit: "20", ...(filterEstado && { estado: filterEstado }) });
+    const params = new URLSearchParams({ limit: "50", ...(filterEstado && { estado: filterEstado }) });
     try {
       const res = await fetch(`/api/prestamos?${params}`);
       const data = await res.json();
@@ -92,28 +108,61 @@ export function MisPrestamos() {
 
   useEffect(() => { fetchSolicitudes(); }, [fetchSolicitudes]);
 
-  // Fetch available materials for the form
+  // Disponibilidad para las fechas elegidas
+  const fechasCompletas =
+    esFechaValida(fechaRetiro) && esFechaValida(fechaDevolucion) && fechaDevolucion >= fechaRetiro;
+  const rango = fechasCompletas ? `${fechaRetiro}|${fechaDevolucion}` : "";
+  const dispVigente = rango !== "" && disp.rango === rango;
+  const materiales = dispVigente ? disp.materiales : [];
+  const dispError = dispVigente ? disp.error : "";
+  const isLoadingDisp = rango !== "" && !dispVigente;
+
   useEffect(() => {
-    if (!isFormOpen) return;
-    fetch("/api/materiales?estado=DISPONIBLE&limit=100")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.materiales) setMateriales(data.materiales);
+    if (!isFormOpen || !rango) return;
+    const [desde, hasta] = rango.split("|");
+    let cancelado = false;
+    fetch(`/api/prestamos/disponibilidad?desde=${desde}&hasta=${hasta}`)
+      .then(async (r) => {
+        const data = await r.json();
+        if (cancelado) return;
+        setDisp(
+          r.ok
+            ? { rango, materiales: data.materiales, error: "" }
+            : { rango, materiales: [], error: data.error ?? "No se pudo consultar la disponibilidad" }
+        );
       })
-      .catch(() => {});
-  }, [isFormOpen]);
+      .catch(() => { if (!cancelado) setDisp({ rango, materiales: [], error: "Error de conexión" }); });
+    return () => { cancelado = true; };
+  }, [isFormOpen, rango]);
 
-  // ── Row helpers ──────────────────────────────────────────────────────────
+  // ── Form helpers ─────────────────────────────────────────────────────────
 
-  function addRow() { setRows((prev) => [...prev, { materialId: "", cantidad: 1 }]); }
+  function openForm() {
+    setIsFormOpen(true);
+    setFormError("");
+    setResponsable("");
+    setActividad("");
+    setFechaRetiro("");
+    setFechaDevolucion("");
+    setRows([FILA_VACIA]);
+    setDisp({ rango: "", materiales: [], error: "" });
+  }
+
+  function addRow() { setRows((prev) => [...prev, FILA_VACIA]); }
   function removeRow(i: number) { setRows((prev) => prev.filter((_, idx) => idx !== i)); }
   function updateRow(i: number, field: keyof MaterialRow, value: MaterialRow[typeof field]) {
     setRows((prev) => prev.map((row, idx) => idx === i ? { ...row, [field]: value } : row));
   }
 
-  function getMaxCantidad(materialId: number | ""): number {
-    if (!materialId) return 99;
-    return materiales.find((m) => m.id === materialId)?.cantidad ?? 99;
+  function materialDe(row: MaterialRow) {
+    return row.materialId === "" ? undefined : materiales.find((m) => m.id === row.materialId);
+  }
+
+  /** Solicitudes pendientes de otras secciones con las que esta fila compite. */
+  function conflictoDe(row: MaterialRow): Competidora[] {
+    const m = materialDe(row);
+    if (!m || row.cantidad > m.disponible || row.cantidad <= m.disponibleConPendientes) return [];
+    return m.pendientes.filter((p) => !p.propia);
   }
 
   // ── Submit ───────────────────────────────────────────────────────────────
@@ -122,6 +171,9 @@ export function MisPrestamos() {
     e.preventDefault();
     setFormError("");
 
+    if (responsable.trim().length < 3) { setFormError("Indique el nombre del dirigente responsable"); return; }
+    if (!fechasCompletas) { setFormError("Indique fechas de retiro y devolución válidas"); return; }
+
     const filled = rows.filter((r) => r.materialId !== "");
     if (filled.length === 0) { setFormError("Debe seleccionar al menos un material"); return; }
 
@@ -129,9 +181,12 @@ export function MisPrestamos() {
     if (hasDuplicates) { setFormError("No puede seleccionar el mismo material más de una vez"); return; }
 
     for (const r of filled) {
+      const m = materialDe(r);
       if (r.cantidad < 1) { setFormError("Las cantidades deben ser mayores a 0"); return; }
-      const max = getMaxCantidad(r.materialId);
-      if (r.cantidad > max) { setFormError(`La cantidad solicitada supera el stock disponible`); return; }
+      if (m && r.cantidad > m.disponible) {
+        setFormError(`Solo hay ${m.disponible} unidad(es) de "${m.nombre}" disponibles para esas fechas`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -139,12 +194,17 @@ export function MisPrestamos() {
       const res = await fetch("/api/prestamos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ materiales: filled.map((r) => ({ materialId: r.materialId, cantidad: r.cantidad })) }),
+        body: JSON.stringify({
+          responsable: responsable.trim(),
+          actividad: actividad.trim() || undefined,
+          fechaRetiro,
+          fechaDevolucionEsperada: fechaDevolucion,
+          materiales: filled.map((r) => ({ materialId: r.materialId, cantidad: r.cantidad })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setFormError(data.error ?? "Error al enviar solicitud"); return; }
       setIsFormOpen(false);
-      setRows([{ materialId: "", cantidad: 1 }]);
       fetchSolicitudes();
     } catch { setFormError("Error de conexión. Inténtelo de nuevo."); }
     finally { setIsSubmitting(false); }
@@ -156,16 +216,19 @@ export function MisPrestamos() {
     if (!cancelingId) return;
     setIsCanceling(true);
     try {
-      const res = await fetch(`/api/prestamos/${cancelingId}`, { method: "DELETE" });
-      if (res.ok) {
-        setCancelingId(null);
-        fetchSolicitudes();
-      }
-    } catch { }
+      const res = await fetch(`/api/prestamos/${cancelingId}/cancelar`, { method: "PUT" });
+      const data = await res.json();
+      if (!res.ok) setPageError(data.error ?? "No se pudo cancelar la solicitud");
+      setCancelingId(null);
+      fetchSolicitudes();
+    } catch { setPageError("Error de conexión"); }
     finally { setIsCanceling(false); }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  const hoy = hoyCRISO();
+  const hayConflictos = rows.some((r) => conflictoDe(r).length > 0);
 
   return (
     <div>
@@ -176,10 +239,10 @@ export function MisPrestamos() {
           onChange={(e) => setFilterEstado(e.target.value)}
           className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-slate-400 transition-colors cursor-pointer"
         >
-          {ESTADO_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {ESTADO_SOLICITUD_FILTROS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <div className="sm:ml-auto">
-          <Button onClick={() => { setIsFormOpen(true); setFormError(""); setRows([{ materialId: "", cantidad: 1 }]); }} size="sm">
+          <Button onClick={openForm} size="sm">
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5z" />
             </svg>
@@ -212,65 +275,85 @@ export function MisPrestamos() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
           </svg>
           <p className="text-sm font-medium">
-            {filterEstado ? "No hay solicitudes con ese estado" : "No tiene solicitudes de préstamo"}
+            {filterEstado ? "No hay solicitudes con ese estado" : "La sección no tiene solicitudes de préstamo"}
           </p>
-          <button
-            onClick={() => { setIsFormOpen(true); setFormError(""); setRows([{ materialId: "", cantidad: 1 }]); }}
-            className="mt-3 text-xs text-green-600 hover:text-green-700 underline cursor-pointer"
-          >
+          <button onClick={openForm} className="mt-3 text-xs text-green-600 hover:text-green-700 underline cursor-pointer">
             Crear primera solicitud
           </button>
         </div>
       ) : (
         <div className="space-y-3">
           {solicitudes.map((s) => {
-            const cfg = ESTADO_CONFIG[s.estado] ?? ESTADO_CONFIG.PENDIENTE;
+            const cfg = ESTADO_SOLICITUD_CONFIG[s.estado] ?? ESTADO_SOLICITUD_CONFIG.PENDIENTE;
+            const vencida = s.estado === "ENTREGADA" && s.fechaDevolucionEsperada.slice(0, 10) < hoy;
+            const cancelable = s.estado === "PENDIENTE" || s.estado === "APROBADA";
             return (
               <div key={s.id} className={`bg-white rounded-xl border border-slate-200 border-l-4 ${cfg.accent} shadow-sm p-5`}>
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <p className="text-xs text-slate-400 font-mono">Solicitud #{s.id}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Enviada el {formatDate(s.fechaSolicitud)}</p>
+                    <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                      {formatRango(s.fechaRetiro, s.fechaDevolucionEsperada)}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {s.actividad ? <>{s.actividad} · </> : null}Responsable: {s.responsable}
+                    </p>
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0 ${cfg.badge}`}>
-                    {cfg.label}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${cfg.badge}`}>
+                      {cfg.label}
+                    </span>
+                    {vencida && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                        Devolución vencida
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Materials */}
                 <div className="space-y-1.5 mb-3">
                   {s.detalles.map((d) => (
-                    <div key={d.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <div key={d.id} className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" aria-hidden="true" />
                       <span className="font-medium">{d.material.nombre}</span>
                       <span className="text-slate-400">×{d.cantidad}</span>
+                      {s.estado === "DEVUELTA" && d.cantidadDanada > 0 && (
+                        <span className="text-xs text-amber-700 bg-amber-50 px-1.5 rounded">{d.cantidadDanada} dañada(s)</span>
+                      )}
+                      {s.estado === "DEVUELTA" && d.cantidadFaltante > 0 && (
+                        <span className="text-xs text-red-700 bg-red-50 px-1.5 rounded">{d.cantidadFaltante} faltante(s)</span>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 {/* Dates row */}
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 border-t border-slate-100 pt-3">
-                  {s.fechaDevolucionEsperada && (
-                    <span>Retorno esperado: <span className="font-medium text-slate-700">{formatDate(s.fechaDevolucionEsperada)}</span></span>
-                  )}
-                  {s.fechaDevolucionReal && (
-                    <span>Devuelto el: <span className="font-medium text-slate-700">{formatDate(s.fechaDevolucionReal)}</span></span>
-                  )}
-                  {s.fechaRechazo && (
-                    <span>Rechazado el: <span className="font-medium text-slate-700">{formatDate(s.fechaRechazo)}</span></span>
-                  )}
+                  <span>Enviada: <span className="font-medium text-slate-700">{formatFechaHora(s.fechaSolicitud)}</span></span>
+                  {s.fechaAprobacion && <span>Aprobada: <span className="font-medium text-slate-700">{formatFechaHora(s.fechaAprobacion)}</span></span>}
+                  {s.fechaEntrega && <span>Retirada: <span className="font-medium text-slate-700">{formatFechaHora(s.fechaEntrega)}</span></span>}
+                  {s.fechaDevolucionReal && <span>Devuelta: <span className="font-medium text-slate-700">{formatFechaHora(s.fechaDevolucionReal)}</span></span>}
+                  {s.fechaRechazo && <span>Rechazada: <span className="font-medium text-slate-700">{formatFechaHora(s.fechaRechazo)}</span></span>}
+                  {s.fechaCancelacion && <span>Cancelada: <span className="font-medium text-slate-700">{formatFechaHora(s.fechaCancelacion)}</span></span>}
                 </div>
 
-                {/* Rejection reason */}
-                {s.razonRechazo && (
+                {s.estado === "RECHAZADA" && (
                   <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-red-700 mb-0.5">Motivo de rechazo</p>
-                    <p className="text-xs text-red-800">{s.razonRechazo}</p>
+                    <p className="text-xs font-semibold text-red-700 mb-0.5">Motivo de rechazo: {etiquetaMotivoRechazo(s.motivoRechazo)}</p>
+                    {s.razonRechazo && <p className="text-xs text-red-800">{s.razonRechazo}</p>}
+                  </div>
+                )}
+
+                {s.observacionesDevolucion && (
+                  <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-slate-600 mb-0.5">Observaciones de la devolución</p>
+                    <p className="text-xs text-slate-700">{s.observacionesDevolucion}</p>
                   </div>
                 )}
 
                 {/* Actions */}
-                {s.estado === "PENDIENTE" && (
+                {cancelable && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
                     {cancelingId === s.id ? (
                       <div className="flex items-center gap-2">
@@ -295,7 +378,7 @@ export function MisPrestamos() {
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsFormOpen(false)} aria-hidden="true" />
-          <div className="relative w-full max-w-lg bg-white rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+          <div className="relative w-full max-w-xl bg-white rounded-xl shadow-xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h2 className="text-base font-semibold text-slate-900">Nueva solicitud de préstamo</h2>
               <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer" aria-label="Cerrar">
@@ -303,67 +386,149 @@ export function MisPrestamos() {
               </button>
             </div>
 
-            <form id="solicitud-form" onSubmit={handleSubmit} className="px-6 py-5 overflow-y-auto space-y-4">
+            <form id="solicitud-form" onSubmit={handleSubmit} className="px-6 py-5 overflow-y-auto space-y-5">
               {formError && <Alert type="error" onClose={() => setFormError("")}>{formError}</Alert>}
 
+              {/* Datos generales */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="responsable" className="text-sm font-medium text-slate-700">Dirigente responsable *</label>
+                  <input id="responsable" value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="Ej. María Fernández" className={inputClass} maxLength={100} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="actividad" className="text-sm font-medium text-slate-700">Actividad</label>
+                  <input id="actividad" value={actividad} onChange={(e) => setActividad(e.target.value)} placeholder="Ej. Campamento de patrulla" className={inputClass} maxLength={200} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="fecha-retiro" className="text-sm font-medium text-slate-700">Fecha de retiro *</label>
+                  <input
+                    id="fecha-retiro"
+                    type="date"
+                    min={hoy}
+                    value={fechaRetiro}
+                    onChange={(e) => {
+                      setFechaRetiro(e.target.value);
+                      if (fechaDevolucion && e.target.value > fechaDevolucion) setFechaDevolucion(e.target.value);
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="fecha-devolucion" className="text-sm font-medium text-slate-700">Fecha de devolución *</label>
+                  <input
+                    id="fecha-devolucion"
+                    type="date"
+                    min={fechaRetiro || hoy}
+                    value={fechaDevolucion}
+                    onChange={(e) => setFechaDevolucion(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {/* Materiales */}
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Materiales solicitados</p>
-                <div className="space-y-2">
-                  {rows.map((row, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <select
-                        value={row.materialId}
-                        onChange={(e) => updateRow(i, "materialId", e.target.value === "" ? "" : parseInt(e.target.value, 10))}
-                        className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-slate-400 transition-colors cursor-pointer"
-                        required
-                      >
-                        <option value="">Seleccionar material...</option>
-                        {materiales.map((m) => (
-                          <option key={m.id} value={m.id} disabled={rows.some((r, idx) => idx !== i && r.materialId === m.id)}>
-                            {m.nombre} ({m.cantidad} disp.)
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min={1}
-                        max={getMaxCantidad(row.materialId)}
-                        value={row.cantidad}
-                        onChange={(e) => updateRow(i, "cantidad", Math.max(1, parseInt(e.target.value, 10) || 1))}
-                        className="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-slate-400 transition-colors text-center"
-                      />
-                      {rows.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeRow(i)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer flex-shrink-0"
-                          aria-label="Eliminar fila"
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-                        </button>
-                      )}
+
+                {!fechasCompletas ? (
+                  <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    Seleccione las fechas para ver qué materiales están disponibles.
+                  </p>
+                ) : isLoadingDisp ? (
+                  <p className="text-sm text-slate-500">Consultando disponibilidad...</p>
+                ) : dispError ? (
+                  <Alert type="error">{dispError}</Alert>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      {rows.map((row, i) => {
+                        const m = materialDe(row);
+                        const excede = !!m && row.cantidad > m.disponible;
+                        const competidoras = conflictoDe(row);
+                        return (
+                          <div key={i}>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={row.materialId}
+                                onChange={(e) => updateRow(i, "materialId", e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                                className={`flex-1 ${inputClass} cursor-pointer`}
+                                required
+                              >
+                                <option value="">Seleccionar material...</option>
+                                {materiales.map((opt) => (
+                                  <option
+                                    key={opt.id}
+                                    value={opt.id}
+                                    disabled={opt.disponible === 0 || rows.some((r, idx) => idx !== i && r.materialId === opt.id)}
+                                  >
+                                    {opt.nombre} ({opt.disponible === 0 ? "sin unidades en esas fechas" : `${opt.disponible} disp.`})
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                min={1}
+                                max={m?.disponible ?? undefined}
+                                value={row.cantidad}
+                                onChange={(e) => updateRow(i, "cantidad", Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                className={`w-20 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors text-center ${excede ? "border-red-400" : "border-slate-300 hover:border-slate-400"}`}
+                                aria-label="Cantidad"
+                              />
+                              {rows.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeRow(i)}
+                                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer flex-shrink-0"
+                                  aria-label="Eliminar fila"
+                                >
+                                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                                </button>
+                              )}
+                            </div>
+                            {excede && (
+                              <p className="mt-1 text-xs text-red-600">
+                                Solo hay {m!.disponible} unidad(es) disponibles para esas fechas.
+                              </p>
+                            )}
+                            {competidoras.length > 0 && (
+                              <div className="mt-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                                <p className="font-medium">Otras secciones también pidieron este material para fechas que se traslapan:</p>
+                                <ul className="mt-0.5 list-disc list-inside">
+                                  {competidoras.map((c) => (
+                                    <li key={c.solicitudId}>
+                                      {c.seccion}: {c.cantidad} unidad(es), {formatRango(c.fechaRetiro, c.fechaDevolucionEsperada)}
+                                    </li>
+                                  ))}
+                                </ul>
+                                <p className="mt-0.5">No alcanza para todas. Puede enviar la solicitud y el administrador decidirá, o ajustar fechas o cantidades.</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={addRow}
-                  className="mt-3 flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors cursor-pointer"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5z" /></svg>
-                  Agregar material
-                </button>
+                    <button
+                      type="button"
+                      onClick={addRow}
+                      className="mt-3 flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5z" /></svg>
+                      Agregar material
+                    </button>
+                  </>
+                )}
               </div>
 
               <p className="text-xs text-slate-400">
-                Un administrador revisará su solicitud. Recibirá una respuesta con el estado de aprobación.
+                Un administrador revisará la solicitud. El material queda apartado para la sección cuando la solicitud se aprueba.
+                {fechasCompletas && <> Uso del {formatFecha(fechaRetiro)} al {formatFecha(fechaDevolucion)}.</>}
               </p>
             </form>
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200">
               <Button variant="outline" size="sm" onClick={() => setIsFormOpen(false)} disabled={isSubmitting}>Cancelar</Button>
-              <Button form="solicitud-form" type="submit" size="sm" isLoading={isSubmitting}>
-                Enviar solicitud
+              <Button form="solicitud-form" type="submit" size="sm" isLoading={isSubmitting} disabled={!fechasCompletas || isLoadingDisp}>
+                {hayConflictos ? "Enviar de todas formas" : "Enviar solicitud"}
               </Button>
             </div>
           </div>

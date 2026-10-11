@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminNavBar } from "@/components/layout/AdminNavBar";
 import { prisma } from "@/lib/db";
+import { hoyCR } from "@/lib/fechas";
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -16,9 +17,12 @@ export default async function AdminDashboard() {
     redirect("/dashboard/usuario");
   }
 
-  const [totalMateriales, solicitudesPendientes] = await Promise.all([
+  const hoy = hoyCR();
+  const [totalMateriales, solicitudesPendientes, porEntregar, vencidas] = await Promise.all([
     prisma.material.count(),
     prisma.solicitudPrestamo.count({ where: { estado: "PENDIENTE" } }),
+    prisma.solicitudPrestamo.count({ where: { estado: "APROBADA", fechaRetiro: { lte: hoy } } }),
+    prisma.solicitudPrestamo.count({ where: { estado: "ENTREGADA", fechaDevolucionEsperada: { lt: hoy } } }),
   ]);
 
   const statCards = [
@@ -57,14 +61,48 @@ export default async function AdminDashboard() {
       ),
     },
     {
+      label: "Por Entregar",
+      value: String(porEntregar),
+      description: "préstamos aprobados cuya fecha de retiro ya llegó",
+      href: "/admin/prestamos",
+      linkText: "Ver préstamos",
+      accent: "border-sky-500",
+      iconBg: "bg-sky-50",
+      iconColor: "text-sky-600",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"
+        />
+      ),
+    },
+    {
+      label: "Devoluciones Vencidas",
+      value: String(vencidas),
+      description: "préstamos entregados sin devolver a tiempo",
+      href: "/admin/prestamos",
+      linkText: "Ver préstamos",
+      accent: vencidas > 0 ? "border-red-500" : "border-slate-300",
+      iconBg: vencidas > 0 ? "bg-red-50" : "bg-slate-50",
+      iconColor: vencidas > 0 ? "text-red-600" : "text-slate-400",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+        />
+      ),
+    },
+    {
       label: "Análisis",
       value: "—",
       description: "estadísticas del sistema",
       href: "/admin/graficos",
       linkText: "Ver análisis",
-      accent: "border-sky-500",
-      iconBg: "bg-sky-50",
-      iconColor: "text-sky-600",
+      accent: "border-violet-500",
+      iconBg: "bg-violet-50",
+      iconColor: "text-violet-600",
       icon: (
         <path
           strokeLinecap="round"
@@ -136,7 +174,7 @@ export default async function AdminDashboard() {
             </svg>
           </div>
           <p className="text-sm text-green-700">
-            Los módulos de materiales, préstamos y análisis se encuentran en desarrollo y estarán disponibles próximamente.
+            Revise primero las solicitudes marcadas con «Conflicto»: otra sección pidió el mismo material para fechas que se traslapan y no alcanza para todas.
           </p>
         </div>
       </main>

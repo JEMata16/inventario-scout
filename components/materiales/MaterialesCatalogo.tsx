@@ -6,7 +6,8 @@ interface Material {
   id: number;
   nombre: string;
   descripcion?: string | null;
-  cantidad: number;
+  cantidadTotal: number;
+  disponibleHoy: number;
   categoria?: string | null;
   estado: string;
   hasImagen?: boolean;
@@ -186,12 +187,19 @@ export function MaterialesCatalogo() {
                 )}
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
                   <span className="text-xs text-slate-500">
-                    <span className="font-semibold text-slate-800">{m.cantidad}</span> disponible{m.cantidad !== 1 ? "s" : ""}
+                    <span className="font-semibold text-slate-800">{m.disponibleHoy}</span> de {m.cantidadTotal} libre{m.disponibleHoy !== 1 ? "s" : ""} hoy
                   </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
-                    Disponible
-                  </span>
+                  {m.disponibleHoy > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
+                      Disponible
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                      Prestado hoy
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function PUT(request: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if ((session.user as any).role !== "ADMIN") return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
 
   const { id } = await params;
   const solicitudId = parseInt(id, 10);
@@ -18,7 +18,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
   const body = await request.json();
   const result = RechazarPrestamoSchema.safeParse(body);
   if (!result.success) {
-    return NextResponse.json({ error: "Datos inválidos", details: result.error.issues }, { status: 400 });
+    return NextResponse.json(
+      { error: result.error.issues[0]?.message ?? "Datos inválidos", details: result.error.issues },
+      { status: 400 }
+    );
   }
 
   const admin = await prisma.usuario.findUnique({
@@ -37,15 +40,20 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Solo se pueden rechazar solicitudes pendientes" }, { status: 400 });
   }
 
-  const updated = await prisma.solicitudPrestamo.update({
-    where: { id: solicitudId },
+  const { count } = await prisma.solicitudPrestamo.updateMany({
+    where: { id: solicitudId, estado: "PENDIENTE" },
     data: {
       estado: "RECHAZADA",
       fechaRechazo: new Date(),
-      razonRechazo: result.data.razon,
+      motivoRechazo: result.data.motivo,
+      razonRechazo: result.data.razon || null,
       rechazadoPor: admin.id,
     },
   });
 
-  return NextResponse.json(updated);
+  if (count === 0) {
+    return NextResponse.json({ error: "La solicitud cambió de estado. Actualice la página." }, { status: 409 });
+  }
+
+  return NextResponse.json({ message: "Solicitud rechazada" });
 }

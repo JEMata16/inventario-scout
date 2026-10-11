@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CreateMaterialSchema } from "@/lib/validations";
+import { calcularDisponibilidad } from "@/lib/disponibilidad";
+import { hoyCR } from "@/lib/fechas";
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -44,11 +46,16 @@ export async function GET(request: NextRequest) {
     prisma.material.count({ where }),
   ]);
 
+  // Unidades libres hoy (descontando préstamos aprobados/entregados y mantenimiento)
+  const hoy = hoyCR();
+  const disponibilidad = await calcularDisponibilidad(prisma, rawMateriales.map((m) => m.id), hoy, hoy);
+
   // Strip base64 image data from list response to keep payloads small.
   // Consumers use /api/materiales/{id}/imagen to display images.
   const materiales = rawMateriales.map(({ imagen, ...rest }) => ({
     ...rest,
     hasImagen: !!imagen,
+    disponibleHoy: disponibilidad.get(rest.id)?.disponible ?? 0,
   }));
 
   return NextResponse.json({
@@ -62,8 +69,7 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") {
+  if (session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Solo administradores pueden crear materiales" }, { status: 403 });
   }
 
@@ -82,7 +88,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const result = CreateMaterialSchema.safeParse(body);
   if (!result.success) {
-    return NextResponse.json({ error: "Datos inválidos", details: result.error.issues }, { status: 400 });
+    return NextResponse.json(
+      { error: result.error.issues[0]?.message ?? "Datos inválidos", details: result.error.issues },
+      { status: 400 }
+    );
   }
 
   const material = await prisma.material.create({

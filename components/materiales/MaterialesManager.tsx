@@ -154,7 +154,9 @@ export function MaterialesManager() {
                 <th className="text-left px-4 py-3 font-medium text-slate-600 w-16">Imagen</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Nombre</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-600 hidden md:table-cell">Categoría</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Cantidad</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600">Total</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600 hidden sm:table-cell">Mant.</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600" title="Unidades libres hoy (sin préstamos aprobados ni entregados)">Libres hoy</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Estado</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Acciones</th>
               </tr>
@@ -172,7 +174,7 @@ export function MaterialesManager() {
                 ))
               ) : materiales.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-slate-400">
                       <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
@@ -217,7 +219,11 @@ export function MaterialesManager() {
                       <td className="px-4 py-3 hidden md:table-cell text-slate-500">
                         {m.categoria ?? <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">{m.cantidad}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{m.cantidadTotal}</td>
+                      <td className="px-4 py-3 text-right text-slate-500 hidden sm:table-cell">
+                        {m.cantidadMantenimiento > 0 ? <span className="text-amber-700">{m.cantidadMantenimiento}</span> : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{m.disponibleHoy ?? "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>
                           {badge.label}

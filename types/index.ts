@@ -1,4 +1,7 @@
+import type { EstadoSolicitud, Seccion } from "@/lib/constantes";
+
 export type Role = "ADMIN" | "USUARIO";
+export type { EstadoSolicitud, Seccion };
 
 export interface Usuario {
   id: number;
@@ -6,6 +9,7 @@ export interface Usuario {
   nombre: string;
   apellido?: string;
   rol: Role;
+  seccion?: Seccion | null;
   estado: boolean;
   telefono?: string;
   fechaRegistro: Date;
@@ -16,7 +20,8 @@ export interface Material {
   id: number;
   nombre: string;
   descripcion?: string;
-  cantidad: number;
+  cantidadTotal: number;
+  cantidadMantenimiento: number;
   categoria?: string;
   estado: "DISPONIBLE" | "NO_DISPONIBLE" | "EN_MANTENIMIENTO";
   creadoPor: number;
@@ -28,33 +33,35 @@ export interface DetallePrestamo {
   id: number;
   materialId: number;
   cantidad: number;
+  cantidadDanada: number;
+  cantidadFaltante: number;
+  observaciones?: string;
   material?: Material;
 }
 
 export interface SolicitudPrestamo {
   id: number;
   usuarioId: number;
-  estado: "PENDIENTE" | "APROBADA" | "RECHAZADA" | "DEVUELTO";
+  estado: EstadoSolicitud;
+  responsable: string;
+  actividad?: string;
   fechaSolicitud: Date;
+  fechaRetiro: Date;
+  fechaDevolucionEsperada: Date;
   fechaAprobacion?: Date;
   fechaRechazo?: Date;
-  fechaDevolucionEsperada?: Date;
+  fechaEntrega?: Date;
   fechaDevolucionReal?: Date;
+  fechaCancelacion?: Date;
   razonRechazo?: string;
+  observacionesDevolucion?: string;
   aceptadoPor?: number;
   rechazadoPor?: number;
+  entregadoPor?: number;
+  recibidoPor?: number;
   detalles?: DetallePrestamo[];
   usuario?: Usuario;
   usuarioAprobador?: Usuario;
-}
-
-export interface Session {
-  user: {
-    id: number;
-    email: string;
-    nombre: string;
-    rol: Role;
-  };
 }
 
 export interface ApiResponse<T> {
